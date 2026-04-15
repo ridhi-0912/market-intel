@@ -4,21 +4,21 @@ import {
   buildSourcesBlock,
   buildAnalyzerUserPrompt,
 } from "../prompts/analyzer";
-import type { ScrapeResult, Theme, CompetitorActivity, RoleSummaries } from "./types";
+import type { ScrapeResult, Theme, CompetitorActivity, RoleType } from "./types";
 
 export interface AnalyzerResult {
   themes: Theme[];
   competitorActivities: CompetitorActivity[];
-  roleSummaries: RoleSummaries;
 }
 
 export async function analyze(
   sources: ScrapeResult[],
-  competitors: string[]
+  competitors: string[],
+  role?: RoleType | null
 ): Promise<AnalyzerResult> {
   const client = getOpenAIClient();
   const sourcesBlock = buildSourcesBlock(sources);
-  const userPrompt = buildAnalyzerUserPrompt(sourcesBlock, competitors);
+  const userPrompt = buildAnalyzerUserPrompt(sourcesBlock, competitors, role);
 
   const tryParse = async (retry: boolean): Promise<AnalyzerResult> => {
     const prompt = retry ? userPrompt + "\n\nOutput ONLY valid JSON." : userPrompt;
@@ -33,7 +33,6 @@ export async function analyze(
     });
 
     const text = response.choices[0]?.message?.content ?? "";
-    // Strip markdown code fences if present
     const cleaned = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
     const parsed = JSON.parse(cleaned);
 
@@ -43,7 +42,6 @@ export async function analyze(
     return {
       themes: parsed.themes ?? [],
       competitorActivities: parsed.competitorActivities ?? [],
-      roleSummaries: parsed.roleSummaries ?? { pm: "", exec: "", sales: "", eng: "" },
     };
   };
 

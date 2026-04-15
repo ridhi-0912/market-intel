@@ -16,7 +16,6 @@ export interface MarketIntelligenceReport {
   sourcesAnalyzed: ScrapeResult[];
   themes: Theme[];
   competitorActivities: CompetitorActivity[];
-  roleSummaries: RoleSummaries;
   hallucinationCheck: HallucinationCheckResult;
   changeDetection: ChangeDetectionResult | null;
 }
@@ -54,13 +53,6 @@ export interface CompetitorActivity {
 }
 
 export type RoleType = "pm" | "exec" | "sales" | "eng";
-
-export interface RoleSummaries {
-  pm: string;
-  exec: string;
-  sales: string;
-  eng: string;
-}
 
 // --- Hallucination check ---
 

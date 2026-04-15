@@ -30,9 +30,10 @@ export async function runPipeline(
 
     // Stage 2: Analyzing
     emit({ stage: "analyzing", message: `Analyzing ${validSources.length} sources with GPT-4o...` });
-    const { themes, competitorActivities, roleSummaries } = await analyze(
+    const { themes, competitorActivities } = await analyze(
       scrapeResults,
-      request.competitors
+      request.competitors,
+      request.role
     );
 
     // Stage 3: Judging
@@ -59,7 +60,6 @@ export async function runPipeline(
       sourcesAnalyzed: scrapeResults,
       themes,
       competitorActivities,
-      roleSummaries,
       hallucinationCheck,
       changeDetection,
     };

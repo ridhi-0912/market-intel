@@ -58,13 +58,23 @@ function extractContent($: cheerio.CheerioAPI, sourceType: SourceType): string {
   return body.slice(0, MAX_CHARS);
 }
 
+const BROWSER_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Cache-Control": "no-cache",
+  "Pragma": "no-cache",
+};
+
 async function scrapeOne(url: string): Promise<ScrapeResult> {
   const scrapedAt = new Date().toISOString();
   try {
     const { data } = await axios.get<string>(url, {
       timeout: TIMEOUT,
-      headers: { "User-Agent": "MarketIntelBot/1.0" },
-      maxRedirects: 3,
+      headers: BROWSER_HEADERS,
+      maxRedirects: 5,
       responseType: "text",
     });
     const $ = cheerio.load(data);

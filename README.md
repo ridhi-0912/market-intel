@@ -75,39 +75,3 @@ vercel --prod
 | @vercel/kv | latest | Production key-value store (Vercel) |
 | zod | latest | Request validation + SSRF protection |
 | p-limit | latest | Scraping concurrency control |
-
-## Design Decisions
-
-**Why axios + cheerio instead of Playwright?**
-Blogs, announcement pages, and articles are all static HTML — no JavaScript
-rendering needed. Cheerio with type-specific selectors is 10× faster, has no
-binary dependencies, and runs on any serverless platform.
-
-**Why simple prompting (full context) instead of RAG?**
-At 3–10 URLs per run, all scraped content fits in Claude's 200K-token window.
-Sending the full context produces better cross-source synthesis — RAG can miss
-connections between chunks from different URLs.
-
-**Why SQLite instead of a vector database?**
-Change detection needs exact hash lookups (L1), string set comparison (L2), and
-cosine similarity on a handful of theme vectors (L3). All three run in-process
-using SQLite's JSON columns and a utility function.
-
-**Why Chain-of-Thought for the analyzer?**
-Without a scratchpad, the model jumps straight to structure and invents themes
-that span multiple sources without explicit reasoning. CoT forces it to list raw
-facts per source before grouping — measurably reducing theme-level hallucinations.
-
-**Why Chain of Verification for the judge?**
-Asking "is this supported?" produces lenient results. CoVe forces the judge to
-first formulate a precise question and find a direct answer in the source text
-before ruling. This eliminates judgment by vague association.
-
-**Why generate both PM and Exec summaries always?**
-The marginal cost is ~200 tokens. Generating both in one call means the user can
-toggle between them in the UI without re-running the analysis.
-
-**Why two different models (GPT-4o for analysis, GPT-4o-mini for judging)?**
-Synthesis across 5 sources requires strong reasoning — GPT-4o. Hallucination
-checking is mechanical fact lookup — GPT-4o-mini is sufficient and significantly
-cheaper.
