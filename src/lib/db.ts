@@ -99,7 +99,13 @@ function createSqliteAdapter(): DbAdapter {
 
 function createKvAdapter(): DbAdapter {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { kv } = require("@vercel/kv");
+  const { createClient } = require("@vercel/kv");
+  // Vercel prefixes env vars with the store name (e.g. "kv_") when multiple
+  // stores are connected. Fall back to the unprefixed names for flexibility.
+  const kv = createClient({
+    url: process.env.kv_KV_REST_API_URL ?? process.env.KV_REST_API_URL,
+    token: process.env.kv_KV_REST_API_TOKEN ?? process.env.KV_REST_API_TOKEN,
+  });
 
   const saveRun = async (record: RunRecord) => {
     await kv.set(`run:${record.runId}`, JSON.stringify(record));
@@ -149,6 +155,9 @@ function createKvAdapter(): DbAdapter {
   } as unknown as DbAdapter;
 }
 
-export const db: DbAdapter = process.env.KV_URL
-  ? createKvAdapter()
-  : createSqliteAdapter();
+const hasKv = !!(
+  (process.env.kv_KV_REST_API_URL ?? process.env.KV_REST_API_URL) &&
+  (process.env.kv_KV_REST_API_TOKEN ?? process.env.KV_REST_API_TOKEN)
+);
+
+export const db: DbAdapter = hasKv ? createKvAdapter() : createSqliteAdapter();
