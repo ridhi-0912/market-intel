@@ -1,10 +1,58 @@
 import type { ScrapeResult, RoleType } from "../lib/types";
 
 const ROLE_DEFINITIONS: Record<RoleType, string> = {
-  pm: "Product Manager — prioritize feature gaps, product parity, user-facing changes, API capabilities, and pricing implications. Frame every theme and insight in terms of roadmap impact and competitive feature positioning.",
-  exec: "Executive — prioritize market momentum, strategic threats, funding signals, M&A activity, and business-level positioning. Frame every theme and insight in terms of competitive risk, market share, and strategic opportunity.",
-  sales: "Sales / BD — prioritize competitive differentiators, win/loss factors, objection-handling material, and upsell opportunities. Frame every theme and insight in terms of how it affects customer conversations and deal outcomes.",
-  eng: "Engineering Lead — prioritize technical architecture choices, API changes, infrastructure shifts, integration complexity, and developer tooling. Frame every theme and insight in terms of technical risk, build-vs-buy decisions, and implementation considerations.",
+  pm: `Product Manager
+Your job is to produce a report that directly informs roadmap decisions and competitive positioning.
+
+Focus on:
+- Feature-by-feature comparisons: what competitors have shipped that you have not, and vice versa
+- Product gaps and parity: where competitors are ahead, behind, or moving fast
+- User-facing changes: UX improvements, workflow changes, pricing model shifts that affect adoption
+- API and platform capabilities: new integrations, SDKs, developer-facing changes that signal platform strategy
+- Signals for your roadmap: what competitor bets suggest about where the market is going
+
+Frame every theme as a strategic product question: "Should we build this? Is this a gap we need to close? Is this a bet worth making?"
+Every insight should answer: "What does this mean for our product?"`,
+
+  exec: `Executive
+Your job is to produce a report that informs strategic decisions at the business level.
+
+Focus on:
+- Competitive momentum: who is accelerating, who is losing ground, and why
+- Strategic threats: moves that could erode market share, pricing power, or customer relationships
+- Market positioning: how competitors are repositioning and what narrative they are pushing
+- Funding, M&A, and partnership signals: capital allocation and consolidation moves
+- Risks and opportunities: what requires a response, and what creates a window to act
+
+Frame every theme as a business-level question: "Does this change our competitive risk? Does this change the market we are competing in?"
+Every insight should answer: "What does this mean for our competitive position?"`,
+
+  sales: `Sales / Business Development
+Your job is to produce a report that directly arms the sales team in competitive deals.
+
+Focus on:
+- Specific differentiators: concrete capabilities we have that competitors do not, and vice versa
+- Objection-handling material: competitor claims that come up in deals and how to counter them
+- Pricing and packaging changes: new tiers, discounts, or bundling that affect deal economics
+- Win/loss signals: what competitor moves suggest about where we win and where we lose
+- Customer-facing messaging: how competitors are positioning themselves to customers, and what that means for our pitch
+
+Frame every theme as a deal question: "How does this change the conversation with a prospect?"
+Every insight should answer: "What do I say when a prospect brings this up?"`,
+
+  eng: `Engineering Lead
+Your job is to produce a report that informs technical strategy and architecture decisions.
+
+Focus on:
+- Architecture and infrastructure choices: serverless, edge, microservices, monolith — what competitors are betting on
+- API design and breaking changes: versioning strategies, deprecations, new endpoints that affect integrations
+- Developer experience: SDK quality, documentation, local development tooling, onboarding friction
+- Build vs buy signals: what competitors are building internally vs sourcing from third parties
+- Security, compliance, and reliability: certifications, incident reports, SLA changes, data residency decisions
+- Open source activity: repos being published, contributions, or community investments
+
+Frame every theme as a technical decision: "Does this change how we build? Does this create integration risk or opportunity?"
+Every insight should answer: "What does an engineer need to know about this?"`,
 };
 
 export const ANALYZER_SYSTEM_PROMPT = `You are a market intelligence analyst. Read scraped web content from competitor and industry sources and produce a structured JSON report.
@@ -62,10 +110,17 @@ Analyze the above sources for these competitors/topics: ${competitors.join(", ")
 
 ${perspectiveLine}
 
-Step 1 — scratchpad: For each source, list every distinct factual claim, tagged by URL.
-Step 2 — themes: Group claims into 3–7 themes relevant to the perspective above. Each insight must have its exact sourceRef URL.
-          Assign a clusterLabel (Product / Pricing / Partnerships / Growth / M&A / Engineering / Other).
-Step 3 — activities: List every significant competitor activity relevant to the perspective above, with its source URL(s).
+Step 1 — scratchpad: For each source URL, list every distinct factual claim found, tagged with its URL.
+
+Step 2 — themes (topic clustering): Identify 3–7 themes that cut across ALL competitors and sources.
+  CRITICAL CLUSTERING RULES:
+  - Themes MUST be organized by TOPIC, not by competitor. Do NOT create one theme per competitor.
+  - If multiple competitors have activity in the same area (e.g. pricing changes, API launches, hiring), those insights MUST be grouped into a single shared theme.
+  - A theme about "API Expansion" should contain insights from Stripe AND Plaid if both are expanding APIs.
+  - Each insight must carry its exact sourceRef URL.
+  - Assign each theme a clusterLabel: Product / Pricing / Partnerships / Growth / M&A / Engineering / Other.
+
+Step 3 — activities: List each significant competitor action with its type, date (if mentioned), and source URL(s).
 
 Output the JSON schema shown in the example. Include scratchpad in output — it will be stripped server-side.`;
 }

@@ -26,30 +26,40 @@ const CLUSTER_COLORS: Record<string, string> = {
 export default function ThemeCard({ theme, flaggedClaims }: Props) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start gap-2 mb-2">
-        <h3 className="text-base font-semibold text-gray-900">{theme.title}</h3>
+      <div className="flex items-start gap-2 mb-3">
+        <h3 className="text-base font-semibold text-gray-900 flex-1">{theme.title}</h3>
         <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${CLUSTER_COLORS[theme.clusterLabel] ?? CLUSTER_COLORS.Other}`}>
           {theme.clusterLabel}
         </span>
       </div>
-      <p className="text-sm text-gray-600 mb-3">{theme.summary}</p>
-      <ul className="space-y-2">
-        {theme.insights.map((insight, i) => (
-          <li key={i} className="flex items-start gap-2 text-sm">
-            <span className="text-gray-800 flex-1">{insight.text}</span>
-            <a
-              href={insight.sourceRef}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 text-xs text-blue-600 hover:underline max-w-[200px] truncate"
-              title={insight.sourceRef}
-            >
-              {new URL(insight.sourceRef).hostname}
-            </a>
-            <HallucinationBadge verdict={getVerdict(insight.text, flaggedClaims)} />
-          </li>
-        ))}
-      </ul>
+
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Summary</p>
+        <p className="text-sm text-gray-600 leading-relaxed">{theme.summary}</p>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+          Key Insights <span className="normal-case font-normal text-gray-400">— each traced to its source</span>
+        </p>
+        <ul className="space-y-2">
+          {theme.insights.map((insight, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm border-l-2 border-gray-100 pl-3">
+              <span className="text-gray-800 flex-1 leading-snug">{insight.text}</span>
+              <a
+                href={insight.sourceRef}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 text-xs text-blue-500 hover:underline max-w-[160px] truncate"
+                title={insight.sourceRef}
+              >
+                {new URL(insight.sourceRef).hostname}
+              </a>
+              <HallucinationBadge verdict={getVerdict(insight.text, flaggedClaims)} />
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

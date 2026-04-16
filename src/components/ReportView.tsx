@@ -38,9 +38,8 @@ export default function ReportView({ report }: Props) {
       {/* 2. Notable Competitor Activities */}
       {report.competitorActivities.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Competitor Activities
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Notable Competitor Activities</h2>
+          <p className="text-sm text-gray-500 mt-0.5 mb-3">Specific actions taken by each competitor, extracted directly from the sources.</p>
           <div className="space-y-3">
             {report.competitorActivities.map((a, i) => (
               <CompetitorCard
@@ -63,7 +62,10 @@ export default function ReportView({ report }: Props) {
 
       {/* 4. Hallucination Verification */}
       <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">Claim Verification</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Claim Verification</h2>
+        <p className="text-sm text-gray-500 mt-0.5 mb-3">
+          Each insight was independently checked by a second LLM using Chain of Verification — it had to locate a verbatim answer in the source text before ruling a claim supported.
+        </p>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-gray-600">
             Confidence: <span className="font-semibold">{Math.round(hallucinationCheck.overallConfidence * 100)}%</span>

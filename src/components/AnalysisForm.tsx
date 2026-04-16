@@ -17,12 +17,26 @@ export default function AnalysisForm() {
   const [competitors, setCompetitors] = useState<string[]>([]);
   const [competitorInput, setCompetitorInput] = useState("");
   const [urls, setUrls] = useState<string[]>([""]);
+  const [urlErrors, setUrlErrors] = useState<Record<number, string>>({});
   const [role, setRole] = useState<RoleType | "">("");
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState<SSEStage>("scraping");
   const [stageMessage, setStageMessage] = useState("");
   const [report, setReport] = useState<MarketIntelligenceReport | null>(null);
   const [error, setError] = useState("");
+
+  const validateUrl = (value: string): string => {
+    if (!value.trim()) return "";
+    if (!value.startsWith("https://")) return "URL must start with https://";
+    try {
+      const parsed = new URL(value);
+      if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+        return "Local URLs are not allowed";
+      return "";
+    } catch {
+      return "Invalid URL format";
+    }
+  };
 
   const addCompetitor = useCallback(() => {
     const val = competitorInput.trim();
@@ -35,12 +49,25 @@ export default function AnalysisForm() {
   const removeCompetitor = (idx: number) =>
     setCompetitors((prev) => prev.filter((_, i) => i !== idx));
 
-  const updateUrl = (idx: number, value: string) =>
+  const updateUrl = (idx: number, value: string) => {
     setUrls((prev) => prev.map((u, i) => (i === idx ? value : u)));
+    const err = validateUrl(value);
+    setUrlErrors((prev) => ({ ...prev, [idx]: err }));
+  };
 
   const addUrl = () => setUrls((prev) => [...prev, ""]);
-  const removeUrl = (idx: number) =>
+  const removeUrl = (idx: number) => {
     setUrls((prev) => prev.filter((_, i) => i !== idx));
+    setUrlErrors((prev) => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const n = parseInt(k);
+        if (n < idx) next[n] = v;
+        else if (n > idx) next[n - 1] = v;
+      });
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,6 +80,14 @@ export default function AnalysisForm() {
     const validUrls = urls.filter((u) => u.trim());
     if (competitors.length === 0 || validUrls.length === 0) {
       setError("Please add at least one competitor and one URL.");
+      setLoading(false);
+      return;
+    }
+    const newErrors: Record<number, string> = {};
+    validUrls.forEach((u, i) => { const e = validateUrl(u); if (e) newErrors[i] = e; });
+    if (Object.keys(newErrors).length > 0) {
+      setUrlErrors(newErrors);
+      setError("Please fix the invalid URLs before analyzing.");
       setLoading(false);
       return;
     }
@@ -164,13 +199,14 @@ export default function AnalysisForm() {
           <legend className="text-sm font-medium text-gray-700 px-1">Source URLs</legend>
           <div className="space-y-2 mt-1">
             {urls.map((url, i) => (
-              <div key={i} className="flex gap-2">
+              <div key={i} className="flex flex-col gap-1">
+              <div className="flex gap-2">
                 <input
                   type="url"
                   value={url}
                   onChange={(e) => updateUrl(i, e.target.value)}
                   placeholder="https://..."
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${urlErrors[i] ? "border-red-400 bg-red-50" : "border-gray-300"}`}
                 />
                 {urls.length > 1 ? (
                   <button
@@ -189,6 +225,10 @@ export default function AnalysisForm() {
                     Add
                   </button>
                 )}
+              </div>
+              {urlErrors[i] && (
+                <p className="text-xs text-red-600 pl-1">{urlErrors[i]}</p>
+              )}
               </div>
             ))}
           </div>

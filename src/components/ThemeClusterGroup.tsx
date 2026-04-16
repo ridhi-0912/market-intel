@@ -17,12 +17,20 @@ export default function ThemeClusterGroup({ themes, flaggedClaims }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Key Themes &amp; Trends</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Topics discovered across all sources, grouped by category. Each theme may include insights from multiple competitors.
+        </p>
+      </div>
       {[...groups.entries()].map(([label, groupThemes]) => (
         <div key={label}>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <span className="flex-1 border-t border-gray-100" />
             {label}
-          </h2>
+            <span className="flex-1 border-t border-gray-100" />
+          </h3>
           <div className="space-y-3">
             {groupThemes.map((theme) => (
               <ThemeCard key={theme.id} theme={theme} flaggedClaims={flaggedClaims} />

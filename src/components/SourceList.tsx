@@ -7,9 +7,17 @@ interface Props {
 }
 
 export default function SourceList({ sources }: Props) {
+  const total = sources.length;
+  const processed = sources.filter((s) => !s.error).length;
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-gray-900 mb-3">Sources</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold text-gray-900">Sources</h2>
+        <span className={`text-sm font-medium ${processed < total ? "text-amber-600" : "text-green-600"}`}>
+          {processed} of {total} processed
+        </span>
+      </div>
       <ul className="space-y-2">
         {sources.map((s) => (
           <li key={s.url} className="flex items-center gap-2 text-sm">
