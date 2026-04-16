@@ -47,9 +47,6 @@ Next.js Route Handler (/api/analyze)
 | Embeddings | text-embedding-3-small | openai ^6.34.0 | Theme vectors for semantic change detection |
 | Persistence (local) | better-sqlite3 | ^12.9.0 | SQLite for local development |
 | Persistence (prod) | @vercel/kv (Upstash) | ^3.0.0 | Serverless key-value store on Vercel |
-| Concurrency | p-limit | ^7.3.0 | Scraping concurrency control |
-| Validation | zod | ^4.3.6 | Request schema validation + SSRF protection |
-| Streaming | Server-Sent Events (SSE) | — | Per-stage progress updates to the browser |
 | Deployment | Vercel | — | Serverless hosting with KV integration |
 
 ---

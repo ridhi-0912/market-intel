@@ -15,11 +15,6 @@ Playwright would add cold-start latency, memory pressure, and incompatibility
 with Vercel's serverless runtime, with no meaningful benefit for this class of
 sources.
 
-**Bot-detection bypass:** Scraping from a cloud IP with a custom user-agent
-string (`MarketIntelBot/1.0`) caused every target site to return 404. The
-scraper now sends a full set of browser-like headers (Chrome user-agent, Accept,
-Accept-Language, Accept-Encoding) so requests are indistinguishable from a real
-browser to the server.
 
 ---
 
@@ -180,28 +175,3 @@ cannot return results synchronously. The SQLite adapter wraps its synchronous
 calls in `async` functions to satisfy the same contract.
 
 ---
-
-## 11. Server-Sent Events over WebSockets
-
-The analysis pipeline is unidirectional: the server pushes stage updates
-(scraping → analyzing → verifying → change detection → complete) and a final
-result. The client never sends mid-stream messages. SSE is the appropriate
-primitive for this pattern — it runs over standard HTTP, requires no upgrade
-handshake, reconnects automatically on drop, and is natively supported by the
-Fetch API. WebSockets would add unnecessary bidirectional complexity and a
-separate connection management layer for what is a one-way progress stream.
-
----
-
-## 12. SSRF protection at the API boundary
-
-URL inputs are validated server-side using Zod before any network request is
-made. The validation enforces:
-
-- HTTPS-only (HTTP URLs rejected)
-- No `localhost` or `127.0.0.1`
-- No RFC-1918 private IP ranges (10.x.x.x, 192.168.x.x, 172.16–31.x.x)
-
-Client-side validation (format check, https:// prefix) provides immediate
-feedback in the form before submission. Server-side validation is the
-authoritative gate — client-side validation is a UX convenience only.
