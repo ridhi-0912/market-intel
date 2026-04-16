@@ -1,37 +1,207 @@
 # Design Decisions
 
-This document captures the key architectural and product trade-offs made during development, along with the reasoning behind each choice.
+This document captures the key architectural and product trade-offs made during
+development, along with the reasoning behind each choice.
 
 ---
 
-## Scraping: axios + cheerio over Playwright
+## 1. Scraping: axios + cheerio over Playwright
 
-Blogs, announcement pages, and press releases are static HTML — no JavaScript rendering is needed to extract their content. Cheerio with type-specific CSS selectors runs in-process, is 10× faster than a headless browser, has no binary dependencies, and deploys without friction on serverless platforms. Playwright would add cold-start latency, memory pressure, and Vercel incompatibility with no meaningful benefit for this class of sources.
+Blogs, announcement pages, and press releases are static HTML — no JavaScript
+rendering is needed to extract their content. Cheerio with type-specific CSS
+selectors runs in-process, is significantly faster than a headless browser, has
+no binary dependencies, and deploys without friction on serverless platforms.
+Playwright would add cold-start latency, memory pressure, and incompatibility
+with Vercel's serverless runtime, with no meaningful benefit for this class of
+sources.
 
-## Context window over RAG
+**Bot-detection bypass:** Scraping from a cloud IP with a custom user-agent
+string (`MarketIntelBot/1.0`) caused every target site to return 404. The
+scraper now sends a full set of browser-like headers (Chrome user-agent, Accept,
+Accept-Language, Accept-Encoding) so requests are indistinguishable from a real
+browser to the server.
 
-At 3–10 URLs per run, all scraped content comfortably fits within a 200K-token context window. Sending the full corpus in a single prompt produces better cross-source synthesis than retrieval: RAG chunking breaks the coherence between related paragraphs and risks missing connections that span multiple sources. The full-context approach is also simpler to reason about and debug — there is no retrieval layer that can silently drop relevant content.
+---
 
-## SQLite over a vector database
+## 2. Full context window over RAG
 
-Change detection operates at three levels: exact hash comparison (content unchanged), string set diffing (themes added or removed), and cosine similarity on a small number of theme vectors (semantic drift). All three run in-process using SQLite's JSON columns and a lightweight utility function. A dedicated vector database would add operational overhead and a network dependency for a problem that does not exceed a handful of vectors per run.
+At 3–10 URLs per run, all scraped content fits comfortably within GPT-4o's
+128K-token context window. Sending the full corpus in a single prompt produces
+better cross-source synthesis than retrieval: RAG chunking breaks the coherence
+between related paragraphs and risks missing connections that span multiple
+sources. The full-context approach is also simpler to reason about and debug —
+there is no retrieval layer that can silently drop relevant content.
 
-## Chain-of-Thought for the analyzer
+---
 
-Without an explicit scratchpad, the model tends to generate theme labels before grounding them in individual sources — producing themes that sound coherent but lack traceable evidence. Requiring the model to enumerate raw facts per source before clustering measurably reduces theme-level fabrication and makes the evidence trail auditable.
+## 3. Role perspective baked into generation, not applied as a filter
 
-## Chain of Verification for the judge
+An early design generated a generic report and then added per-role summary
+panels as a post-processing step. This was replaced with a single approach:
+the selected role's definition is injected directly into the analyzer prompt
+before the model sees any content.
 
-A simple "is this claim supported?" prompt yields lenient verdicts because the model judges by association rather than by direct lookup. Chain of Verification forces the judge to first formulate a precise, falsifiable question and then locate a verbatim answer in the source text before ruling. This closes the gap between "plausible given the source" and "actually stated in the source."
+Each role definition specifies what to prioritize, what lens to apply, and
+a framing question that shapes every theme and insight:
 
-## Two models: GPT-4o for analysis, GPT-4o-mini for verification
+- **Product Manager** — feature gaps, competitive parity, roadmap signals. *"What does this mean for our product?"*
+- **Executive** — strategic threats, market momentum, M&A signals. *"Does this change our competitive position?"*
+- **Sales / BD** — objection-handling material, differentiators, deal impact. *"What do I say when a prospect brings this up?"*
+- **Engineering Lead** — architecture choices, API changes, build-vs-buy signals. *"Does this create integration risk or opportunity?"*
 
-Cross-source synthesis — identifying themes, weighing evidence, and constructing a coherent narrative — requires strong reasoning. GPT-4o handles this. Hallucination verification is mechanical: locate a specific claim in a specific passage. GPT-4o-mini is sufficient for this task and materially cheaper, which matters when it runs once per claim across every theme in every report.
+The model generates themes, insights, and competitor activities that are already
+framed for the target audience — not a generic report with a role-specific
+paragraph bolted on.
 
-## Pre-generating role-specific summaries
+---
 
-The marginal token cost of generating PM, Executive, Sales, and Engineering summaries in a single LLM call is small (~200–400 tokens per additional role). Pre-generating all variants at analysis time means the user can switch perspectives in the UI instantly, without triggering a new API call. The cost is paid once; the latency saving applies on every toggle.
+## 4. Cross-competitor topic clustering
 
-## Server-Sent Events over WebSockets
+The natural failure mode for a multi-competitor report is per-competitor
+grouping: one theme for Stripe, one for Plaid. This defeats the purpose of
+comparative intelligence — a reader needs to see *where competitors are moving
+in the same direction* and *where they diverge*.
 
-The analysis pipeline is unidirectional: the server pushes progress updates and a final result; the client never sends mid-stream messages. SSE is the appropriate primitive for this pattern — it runs over HTTP/1.1, requires no upgrade handshake, and is natively supported by the browser `EventSource` API. WebSockets would add unnecessary bidirectional complexity for what is effectively a long-running job with a progress stream.
+The analyzer prompt explicitly instructs the model:
+
+> *"Themes MUST be organized by TOPIC, not by competitor. If multiple competitors
+> have activity in the same area (e.g. pricing changes, API launches), those
+> insights MUST be grouped into a single shared theme."*
+
+Each theme is assigned a `clusterLabel` (Product / Pricing / Partnerships /
+Growth / M&A / Engineering / Other) and displayed under that label in the UI.
+Themes within the same cluster contain insights from all relevant competitors,
+allowing direct comparison within a topic area.
+
+---
+
+## 5. Chain-of-Thought for the analyzer
+
+Without an explicit scratchpad, the model tends to generate theme labels before
+grounding them in individual sources — producing themes that sound coherent but
+lack traceable evidence. The prompt requires the model to first enumerate raw
+facts per source URL (Step 1 — scratchpad) before grouping them into themes
+(Step 2). This CoT structure measurably reduces theme-level fabrication and
+makes the evidence trail auditable. The scratchpad is stripped server-side
+before the report is returned to the client.
+
+---
+
+## 6. Chain of Verification for the judge (LLM-as-a-judge)
+
+A simple "is this claim supported?" prompt yields lenient verdicts because the
+model reasons by association rather than by direct lookup. Chain of Verification
+forces the judge through a two-step process:
+
+1. Formulate a precise, falsifiable question: *"Does any source explicitly state that...?"*
+2. Locate a verbatim answer in the source text — or report "no evidence found"
+
+Only if a direct answer is found does the judge rule `supported`. This closes the
+gap between "plausible given the source" and "actually stated in the source."
+The judge also assigns a confidence score (0–1) and explanation for every claim,
+so flagged claims can be presented to the user with context.
+
+---
+
+## 7. Two models: GPT-4o for analysis, GPT-4o-mini for verification
+
+Cross-source synthesis — identifying themes across multiple competitors, weighing
+evidence, and constructing a coherent role-specific narrative — requires strong
+reasoning. GPT-4o handles this at temperature 0.4 to allow creative grouping
+while keeping claims grounded.
+
+Hallucination verification is mechanical: locate a specific claim in a specific
+passage. GPT-4o-mini is sufficient for this task at temperature 0 and is
+materially cheaper per token. Since the judge runs once per claim across every
+insight in the report, the cost difference compounds significantly at scale.
+
+---
+
+## 8. Pipeline error-safety: report always delivered if scraping and analysis succeed
+
+The pipeline has five stages: scraping, analysis, hallucination verification,
+change detection, and persistence. An early implementation wrapped all five in a
+single try/catch — a failure in the judge or the database would silently discard
+a completed report.
+
+The current design treats stages differently by criticality:
+
+- **Scraping and analysis** are hard requirements. If all URLs fail to scrape,
+  or if the analyzer throws, there is nothing to report — the pipeline stops and
+  emits an error.
+- **Hallucination verification** degrades gracefully: if the judge call fails,
+  the report is emitted with an empty verification result rather than discarded.
+- **Change detection** degrades gracefully: if embeddings or the DB lookup fail,
+  `changeDetection` is set to `null` and the report is still delivered.
+- **Persistence** is fire-and-forget: `emit({ stage: "complete", report })` runs
+  before `db.saveRun()`, so a database error never blocks the client from
+  receiving the report.
+
+---
+
+## 9. Three-level change detection, scoped by role
+
+Change detection compares the current run against the most recent prior run on
+the same URL set **and the same role**. Scoping by role is intentional: a PM run
+and an Exec run on the same URLs produce structurally different themes (different
+framing, different prioritisation), so comparing them would produce meaningless
+"changes" that are artefacts of the role switch rather than actual content drift.
+
+The three detection levels are:
+
+- **L1 — Content hash (SHA-256):** Detects pages whose raw text changed between
+  runs. Fast, exact, zero false positives.
+- **L2 — Theme title diff:** String set comparison of theme titles to identify
+  newly appeared or disappeared topics.
+- **L3 — Semantic drift (cosine similarity):** Each theme's title and summary is
+  embedded using `text-embedding-3-small`. Cosine similarity between current and
+  prior theme vectors identifies themes that were not renamed but shifted in
+  meaning (similarity 0.70–0.92). Above 0.92 is considered the same theme;
+  below 0.70 is considered a new theme.
+
+---
+
+## 10. SQLite locally, Vercel KV (Upstash) in production
+
+The `DbAdapter` interface defines four async methods (`saveRun`, `getRun`,
+`listRuns`, `getLatestRunForUrlsHash`). Two implementations satisfy this
+interface: a `better-sqlite3` adapter for local development and an Upstash
+Redis adapter (`@vercel/kv`) for production.
+
+The correct implementation is selected at module load time based on whether
+the KV REST API environment variables are present. On Vercel, the filesystem
+is read-only, so the SQLite adapter writes to `/tmp/runs.db` as a fallback
+when KV is not configured — this allows the pipeline to run but does not
+persist history across cold starts.
+
+Making the interface fully async (rather than the original synchronous
+signatures) was necessary because the KV adapter uses network I/O and
+cannot return results synchronously. The SQLite adapter wraps its synchronous
+calls in `async` functions to satisfy the same contract.
+
+---
+
+## 11. Server-Sent Events over WebSockets
+
+The analysis pipeline is unidirectional: the server pushes stage updates
+(scraping → analyzing → verifying → change detection → complete) and a final
+result. The client never sends mid-stream messages. SSE is the appropriate
+primitive for this pattern — it runs over standard HTTP, requires no upgrade
+handshake, reconnects automatically on drop, and is natively supported by the
+Fetch API. WebSockets would add unnecessary bidirectional complexity and a
+separate connection management layer for what is a one-way progress stream.
+
+---
+
+## 12. SSRF protection at the API boundary
+
+URL inputs are validated server-side using Zod before any network request is
+made. The validation enforces:
+
+- HTTPS-only (HTTP URLs rejected)
+- No `localhost` or `127.0.0.1`
+- No RFC-1918 private IP ranges (10.x.x.x, 192.168.x.x, 172.16–31.x.x)
+
+Client-side validation (format check, https:// prefix) provides immediate
+feedback in the form before submission. Server-side validation is the
+authoritative gate — client-side validation is a UX convenience only.
