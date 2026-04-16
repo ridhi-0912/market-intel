@@ -13,7 +13,7 @@ const requestSchema = z.object({
         (url) => {
           try {
             const parsed = new URL(url);
-            if (parsed.protocol !== "https:") return false;
+            if (!["http:", "https:"].includes(parsed.protocol)) return false;
             const hostname = parsed.hostname;
             if (hostname === "localhost" || hostname === "127.0.0.1") return false;
             // Block RFC-1918 private ranges

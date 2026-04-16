@@ -27,9 +27,10 @@ export default function AnalysisForm() {
 
   const validateUrl = (value: string): string => {
     if (!value.trim()) return "";
-    if (!value.startsWith("https://")) return "URL must start with https://";
     try {
       const parsed = new URL(value);
+      if (!["http:", "https:"].includes(parsed.protocol))
+        return "URL must start with http:// or https://";
       if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
         return "Local URLs are not allowed";
       return "";
@@ -37,6 +38,8 @@ export default function AnalysisForm() {
       return "Invalid URL format";
     }
   };
+
+  const hasUrlErrors = urls.some((u, i) => u.trim() && !!urlErrors[i]);
 
   const addCompetitor = useCallback(() => {
     const val = competitorInput.trim();
@@ -256,7 +259,7 @@ export default function AnalysisForm() {
           </select>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || hasUrlErrors}
             className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {loading ? "Analyzing..." : "Analyze"}
