@@ -108,7 +108,16 @@ function createKvAdapter(): DbAdapter {
   });
 
   const saveRun = async (record: RunRecord) => {
+    // Full record for the detail view
     await kv.set(`run:${record.runId}`, JSON.stringify(record));
+    // Lightweight summary for the list view — avoids fetching full records + embeddings
+    await kv.set(`run_summary:${record.runId}`, JSON.stringify({
+      runId: record.runId,
+      createdAt: record.createdAt,
+      competitors: record.competitors,
+      urlCount: record.urls.length,
+      role: record.role,
+    }));
     await kv.zadd("runs:by_date", {
       score: new Date(record.createdAt).getTime(),
       member: record.runId,
@@ -128,15 +137,35 @@ function createKvAdapter(): DbAdapter {
     const ids = (await kv.zrange("runs:by_date", 0, limit - 1, {
       rev: true,
     })) as string[];
-    const runs: RunRecord[] = [];
-    for (const id of ids) {
-      const data = await kv.get(`run:${id}`);
-      if (data)
-        runs.push(
-          (typeof data === "string" ? JSON.parse(data) : data) as RunRecord
-        );
+    if (ids.length === 0) return [];
+    // Fetch lightweight summaries in parallel; fall back to full records for
+    // older runs written before summary keys existed.
+    const summaries = await Promise.all(ids.map((id) => kv.get(`run_summary:${id}`)));
+    const missingIds = ids.filter((_, i) => !summaries[i]);
+    let fallbacks: (unknown)[] = [];
+    if (missingIds.length > 0) {
+      fallbacks = await Promise.all(missingIds.map((id) => kv.get(`run:${id}`)));
     }
-    return runs;
+    let fallbackIdx = 0;
+    return ids
+      .map((_id, i) => {
+        const raw = summaries[i] ?? fallbacks[fallbackIdx++];
+        if (!raw) return null;
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+        // Normalise: summary keys have urlCount; full records have urls[]
+        return {
+          runId: parsed.runId,
+          createdAt: parsed.createdAt,
+          competitors: parsed.competitors,
+          urls: parsed.urls ?? new Array(parsed.urlCount ?? 0).fill(""),
+          role: parsed.role,
+          urlsHash: parsed.urlsHash ?? "",
+          srcHashes: parsed.srcHashes ?? {},
+          themeVecs: parsed.themeVecs ?? [],
+          report: parsed.report ?? {},
+        } as RunRecord;
+      })
+      .filter(Boolean) as RunRecord[];
   };
 
   const getLatestRunForUrlsHash = async (urlsHash: string, role: string | null) => {
