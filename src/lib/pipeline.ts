@@ -71,7 +71,7 @@ export async function runPipeline(
   let themeVecs: RunRecord["themeVecs"] = [];
   try {
     emit({ stage: "detecting_changes", message: "Checking for changes from prior runs..." });
-    const priorRun = await db.getLatestRunForUrlsHash(urlsHash);
+    const priorRun = await db.getLatestRunForUrlsHash(urlsHash, request.role ?? null);
     ({ changeDetection, themeVecs } = await detectChanges(scrapeResults, themes, priorRun));
   } catch {
     // Non-fatal: report is still complete without change detection

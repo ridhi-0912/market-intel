@@ -4,7 +4,7 @@ export interface DbAdapter {
   saveRun(record: RunRecord): Promise<void>;
   getRun(runId: string): Promise<RunRecord | undefined>;
   listRuns(limit?: number): Promise<RunRecord[]>;
-  getLatestRunForUrlsHash(urlsHash: string): Promise<RunRecord | undefined>;
+  getLatestRunForUrlsHash(urlsHash: string, role: string | null): Promise<RunRecord | undefined>;
 }
 
 let _sqliteDb: ReturnType<typeof initSqlite> | null = null;
@@ -44,7 +44,7 @@ function initSqlite() {
     `),
     get: db.prepare("SELECT * FROM runs WHERE run_id = ?"),
     list: db.prepare("SELECT * FROM runs ORDER BY created_at DESC LIMIT ?"),
-    latest: db.prepare("SELECT * FROM runs WHERE urls_hash = ? ORDER BY created_at DESC LIMIT 1"),
+    latest: db.prepare("SELECT * FROM runs WHERE urls_hash = ? AND (role = ? OR (role IS NULL AND ? IS NULL)) ORDER BY created_at DESC LIMIT 1"),
   };
 }
 
@@ -90,8 +90,8 @@ function createSqliteAdapter(): DbAdapter {
       const rows = getSqlite().list.all(limit) as Record<string, string>[];
       return rows.map(rowToRecord);
     },
-    async getLatestRunForUrlsHash(urlsHash: string) {
-      const row = getSqlite().latest.get(urlsHash);
+    async getLatestRunForUrlsHash(urlsHash: string, role: string | null) {
+      const row = getSqlite().latest.get(urlsHash, role, role);
       return row ? rowToRecord(row as Record<string, string>) : undefined;
     },
   };
@@ -113,7 +113,8 @@ function createKvAdapter(): DbAdapter {
       score: new Date(record.createdAt).getTime(),
       member: record.runId,
     });
-    await kv.set(`urls_hash:${record.urlsHash}:latest`, record.runId);
+    const roleKey = record.role ?? "all";
+    await kv.set(`urls_hash:${record.urlsHash}:${roleKey}:latest`, record.runId);
   };
 
   const getRun = async (runId: string) => {
@@ -138,8 +139,10 @@ function createKvAdapter(): DbAdapter {
     return runs;
   };
 
-  const getLatestRunForUrlsHash = async (urlsHash: string) => {
-    const runId = await kv.get(`urls_hash:${urlsHash}:latest`);
+  const getLatestRunForUrlsHash = async (urlsHash: string, role: string | null) => {
+    // Key scoped to role so different perspectives don't compare against each other
+    const roleKey = role ?? "all";
+    const runId = await kv.get(`urls_hash:${urlsHash}:${roleKey}:latest`);
     if (!runId) return undefined;
     const data = await kv.get(`run:${runId}`);
     return data

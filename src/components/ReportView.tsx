@@ -4,6 +4,7 @@ import type { MarketIntelligenceReport } from "../lib/types";
 import ThemeClusterGroup from "./ThemeClusterGroup";
 import CompetitorCard from "./CompetitorCard";
 import SourceList from "./SourceList";
+import ChangeDetectionPanel from "./ChangeDetectionPanel";
 
 interface Props {
   report: MarketIntelligenceReport;
@@ -54,6 +55,11 @@ export default function ReportView({ report }: Props) {
 
       {/* 3. Source References */}
       <SourceList sources={report.sourcesAnalyzed} />
+
+      {/* Change Detection — only shown on repeat runs with the same URLs and role */}
+      {report.changeDetection && (
+        <ChangeDetectionPanel changes={report.changeDetection} />
+      )}
 
       {/* 4. Hallucination Verification */}
       <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
