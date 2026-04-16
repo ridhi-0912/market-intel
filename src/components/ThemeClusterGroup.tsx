@@ -9,12 +9,20 @@ interface Props {
 }
 
 export default function ThemeClusterGroup({ themes, flaggedClaims }: Props) {
+  const CLUSTER_ORDER = ["Product", "Pricing", "Engineering", "Growth", "Partnerships", "M&A", "Other"];
+
   const groups = new Map<string, Theme[]>();
   for (const theme of themes) {
     const label = theme.clusterLabel;
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label)!.push(theme);
   }
+
+  const sortedGroups = [...groups.entries()].sort(([a], [b]) => {
+    const ai = CLUSTER_ORDER.indexOf(a);
+    const bi = CLUSTER_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
 
   return (
     <div className="space-y-8">
@@ -24,7 +32,7 @@ export default function ThemeClusterGroup({ themes, flaggedClaims }: Props) {
           Topics discovered across all sources, grouped by category. Each theme may include insights from multiple competitors.
         </p>
       </div>
-      {[...groups.entries()].map(([label, groupThemes]) => (
+      {sortedGroups.map(([label, groupThemes]) => (
         <div key={label}>
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span className="flex-1 border-t border-gray-100" />
