@@ -1,10 +1,10 @@
 import type { RunRecord } from "./types";
 
 export interface DbAdapter {
-  saveRun(record: RunRecord): void;
-  getRun(runId: string): RunRecord | undefined;
-  listRuns(limit?: number): RunRecord[];
-  getLatestRunForUrlsHash(urlsHash: string): RunRecord | undefined;
+  saveRun(record: RunRecord): Promise<void>;
+  getRun(runId: string): Promise<RunRecord | undefined>;
+  listRuns(limit?: number): Promise<RunRecord[]>;
+  getLatestRunForUrlsHash(urlsHash: string): Promise<RunRecord | undefined>;
 }
 
 let _sqliteDb: ReturnType<typeof initSqlite> | null = null;
@@ -69,7 +69,7 @@ function rowToRecord(row: Record<string, string>): RunRecord {
 
 function createSqliteAdapter(): DbAdapter {
   return {
-    saveRun(record: RunRecord) {
+    async saveRun(record: RunRecord) {
       getSqlite().insert.run(
         record.runId,
         record.createdAt,
@@ -82,15 +82,15 @@ function createSqliteAdapter(): DbAdapter {
         JSON.stringify(record.report)
       );
     },
-    getRun(runId: string) {
+    async getRun(runId: string) {
       const row = getSqlite().get.get(runId);
       return row ? rowToRecord(row as Record<string, string>) : undefined;
     },
-    listRuns(limit = 50) {
+    async listRuns(limit = 50) {
       const rows = getSqlite().list.all(limit) as Record<string, string>[];
       return rows.map(rowToRecord);
     },
-    getLatestRunForUrlsHash(urlsHash: string) {
+    async getLatestRunForUrlsHash(urlsHash: string) {
       const row = getSqlite().latest.get(urlsHash);
       return row ? rowToRecord(row as Record<string, string>) : undefined;
     },
@@ -147,12 +147,7 @@ function createKvAdapter(): DbAdapter {
       : undefined;
   };
 
-  return {
-    saveRun,
-    getRun,
-    listRuns,
-    getLatestRunForUrlsHash,
-  } as unknown as DbAdapter;
+  return { saveRun, getRun, listRuns, getLatestRunForUrlsHash };
 }
 
 const hasKv = !!(

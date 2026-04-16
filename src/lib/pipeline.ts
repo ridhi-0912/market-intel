@@ -71,7 +71,7 @@ export async function runPipeline(
   let themeVecs: RunRecord["themeVecs"] = [];
   try {
     emit({ stage: "detecting_changes", message: "Checking for changes from prior runs..." });
-    const priorRun = db.getLatestRunForUrlsHash(urlsHash) as RunRecord | undefined;
+    const priorRun = await db.getLatestRunForUrlsHash(urlsHash);
     ({ changeDetection, themeVecs } = await detectChanges(scrapeResults, themes, priorRun));
   } catch {
     // Non-fatal: report is still complete without change detection
@@ -98,7 +98,7 @@ export async function runPipeline(
     for (const r of scrapeResults) {
       if (!r.error) srcHashes[r.url] = sha256(r.content);
     }
-    db.saveRun({
+    await db.saveRun({
       runId,
       createdAt: report.generatedAt,
       urlsHash,

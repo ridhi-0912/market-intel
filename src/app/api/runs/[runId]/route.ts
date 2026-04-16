@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ runId: string }> }
 ) {
   const { runId } = await params;
-  const run = db.getRun(runId);
+  const run = await db.getRun(runId);
   if (!run) {
     return Response.json({ error: "Run not found" }, { status: 404 });
   }

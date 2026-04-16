@@ -8,7 +8,7 @@ interface Props {
 
 export default async function ResultsPage({ params }: Props) {
   const { runId } = await params;
-  const run = db.getRun(runId);
+  const run = await db.getRun(runId);
 
   if (!run) {
     notFound();
