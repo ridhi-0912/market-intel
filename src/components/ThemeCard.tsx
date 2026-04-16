@@ -46,15 +46,17 @@ export default function ThemeCard({ theme, flaggedClaims }: Props) {
           {theme.insights.map((insight, i) => (
             <li key={i} className="flex items-start gap-2 text-sm border-l-2 border-gray-100 pl-3">
               <span className="text-gray-800 flex-1 leading-snug">{insight.text}</span>
-              <a
-                href={insight.sourceRef}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 text-xs text-blue-500 hover:underline max-w-[160px] truncate"
-                title={insight.sourceRef}
-              >
-                {new URL(insight.sourceRef).hostname}
-              </a>
+              {insight.sourceRef ? (
+                <a
+                  href={insight.sourceRef}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-xs text-blue-500 hover:underline max-w-[160px] truncate"
+                  title={insight.sourceRef}
+                >
+                  {(() => { try { return new URL(insight.sourceRef).hostname; } catch { return insight.sourceRef; } })()}
+                </a>
+              ) : null}
               <HallucinationBadge verdict={getVerdict(insight.text, flaggedClaims)} />
             </li>
           ))}
