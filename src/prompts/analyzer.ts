@@ -104,23 +104,31 @@ export function buildAnalyzerUserPrompt(
     ? `Perspective: ${ROLE_DEFINITIONS[role]}\nGenerate the entire report from this perspective — filter, prioritize, and frame all themes, insights, and competitor activities to be most relevant and actionable for this audience.`
     : "Perspective: Balanced — cover all relevant themes and activities without filtering for a specific audience.";
 
+  const competitorList = competitors.join(", ");
+
   return `${sourcesBlock}
 
-Analyze the above sources for these competitors/topics: ${competitors.join(", ")}
+Target competitors/topics: ${competitorList}
 
 ${perspectiveLine}
 
-Step 1 — scratchpad: For each source URL, list every distinct factual claim found, tagged with its URL.
+Step 1 — scratchpad:
+  a. For each source URL, list every distinct factual claim found, tagged with its URL.
+  b. For each target competitor (${competitorList}), note whether they are mentioned in ANY source. If a competitor is NOT mentioned in any source, write "NO DATA: [competitor name] — not found in any provided source."
 
-Step 2 — themes (topic clustering): Identify 3–7 themes that cut across ALL competitors and sources.
+Step 2 — themes (topic clustering): Identify 3–7 themes from the sources.
   CRITICAL CLUSTERING RULES:
   - Themes MUST be organized by TOPIC, not by competitor. Do NOT create one theme per competitor.
   - If multiple competitors have activity in the same area (e.g. pricing changes, API launches, hiring), those insights MUST be grouped into a single shared theme.
-  - A theme about "API Expansion" should contain insights from Stripe AND Plaid if both are expanding APIs.
   - Each insight must carry its exact sourceRef URL.
   - Assign each theme a clusterLabel: Product / Pricing / Partnerships / Growth / M&A / Engineering / Other.
+  - If any target competitor had NO coverage in the sources, add a final theme with:
+      title: "No Coverage Found"
+      summary: "The following requested competitors were not mentioned in any of the provided sources: [list them]."
+      clusterLabel: "Other"
+      insights: one insight per missing competitor with text "No information found for [competitor] in the provided sources." and sourceRef set to the empty string "".
 
-Step 3 — activities: List each significant competitor action with its type, date (if mentioned), and source URL(s).
+Step 3 — activities: List each significant competitor action with its type, date (if mentioned), and source URL(s). Only include competitors that are actually present in the sources.
 
 Output the JSON schema shown in the example. Include scratchpad in output — it will be stripped server-side.`;
 }

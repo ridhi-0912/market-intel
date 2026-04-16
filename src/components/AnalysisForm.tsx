@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, type FormEvent } from "react";
+import { useState, useCallback, useEffect, type FormEvent } from "react";
 import type { MarketIntelligenceReport, SSEEvent, SSEStage, RoleType } from "../lib/types";
 import LoadingState from "./LoadingState";
 import ReportView from "./ReportView";
@@ -24,6 +24,13 @@ export default function AnalysisForm() {
   const [stageMessage, setStageMessage] = useState("");
   const [report, setReport] = useState<MarketIntelligenceReport | null>(null);
   const [error, setError] = useState("");
+
+  // Clear the "please add competitor/URL" error whenever the user acts on either field
+  useEffect(() => {
+    if (error === "Please add at least one competitor and one URL.") {
+      setError("");
+    }
+  }, [competitors, urls]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const validateUrl = (value: string): string => {
     if (!value.trim()) return "";
