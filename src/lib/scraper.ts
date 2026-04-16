@@ -6,7 +6,7 @@ import type { ScrapeResult } from "./types";
 
 type SourceType = ScrapeResult["sourceType"];
 
-const TIMEOUT = parseInt(process.env.SCRAPING_TIMEOUT_MS || "10000", 10);
+const TIMEOUT = parseInt(process.env.SCRAPING_TIMEOUT_MS || "7000", 10);
 const MAX_CHARS = parseInt(process.env.MAX_CONTENT_CHARS || "8000", 10);
 const CONCURRENCY = parseInt(process.env.MAX_SCRAPE_CONCURRENCY || "3", 10);
 

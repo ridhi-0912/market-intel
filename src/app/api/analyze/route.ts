@@ -47,14 +47,26 @@ export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let closed = false;
+
       const emit = (event: SSEEvent) => {
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
-        );
+        if (closed) return;
+        try {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
+          );
+        } catch {
+          // Stream was closed by a timeout or client disconnect — stop emitting
+          closed = true;
+        }
       };
 
-      await runPipeline(parsed.data, emit);
-      controller.close();
+      try {
+        await runPipeline(parsed.data, emit);
+      } catch {
+        // Pipeline threw after stream was already closed — nothing to do
+      }
+      if (!closed) controller.close();
     },
   });
 
