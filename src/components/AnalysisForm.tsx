@@ -25,12 +25,12 @@ export default function AnalysisForm() {
   const [report, setReport] = useState<MarketIntelligenceReport | null>(null);
   const [error, setError] = useState("");
 
-  // Clear the "please add competitor/URL" error whenever the user acts on either field
+  // Clear the "please add competitor/URL" error whenever the user acts on any input
   useEffect(() => {
     if (error === "Please add at least one competitor and one URL.") {
       setError("");
     }
-  }, [competitors, urls]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [competitors, urls, competitorInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const validateUrl = (value: string): string => {
     if (!value.trim()) return "";
@@ -88,11 +88,6 @@ export default function AnalysisForm() {
     setStageMessage("Starting...");
 
     const validUrls = urls.filter((u) => u.trim());
-    if (competitors.length === 0 || validUrls.length === 0) {
-      setError("Please add at least one competitor and one URL.");
-      setLoading(false);
-      return;
-    }
     const newErrors: Record<number, string> = {};
     validUrls.forEach((u, i) => { const e = validateUrl(u); if (e) newErrors[i] = e; });
     if (Object.keys(newErrors).length > 0) {
@@ -256,7 +251,7 @@ export default function AnalysisForm() {
           </select>
           <button
             type="submit"
-            disabled={loading || hasUrlErrors}
+            disabled={loading || hasUrlErrors || competitors.length === 0 || !urls.some((u) => u.trim())}
             className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {loading ? "Analyzing..." : "Analyze"}
