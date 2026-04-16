@@ -218,21 +218,13 @@ export default function AnalysisForm() {
                   placeholder="https://..."
                   className={`flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${urlErrors[i] ? "border-red-400 bg-red-50" : "border-gray-300"}`}
                 />
-                {urls.length > 1 ? (
+                {urls.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeUrl(i)}
                     className="px-4 py-2 rounded-md border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
                   >
                     Remove
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={addUrl}
-                    className="px-4 py-2 rounded-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    Add
                   </button>
                 )}
               </div>
@@ -242,11 +234,9 @@ export default function AnalysisForm() {
               </div>
             ))}
           </div>
-          {urls.length > 1 && (
-            <button type="button" onClick={addUrl} className="mt-2 px-4 py-2 rounded-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">
-              + Add URL
-            </button>
-          )}
+          <button type="button" onClick={addUrl} className="mt-2 px-4 py-2 rounded-md border border-gray-300 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">
+            + Add URL
+          </button>
         </fieldset>
 
         {error && (
