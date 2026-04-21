@@ -20,20 +20,25 @@ export default function SourceList({ sources }: Props) {
       </div>
       <ul className="space-y-2">
         {sources.map((s) => (
-          <li key={s.url} className="flex items-center gap-2 text-sm">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${s.error ? "bg-red-500" : "bg-green-500"}`} />
-            <a
-              href={s.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline truncate flex-1"
-            >
-              {s.title || s.url}
-            </a>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${s.error ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-              {s.error ? "failed" : "ok"}
-            </span>
-            <span className="text-xs text-gray-400">{s.sourceType}</span>
+          <li key={s.url} className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2 text-sm">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${s.error ? "bg-red-500" : "bg-green-500"}`} />
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline truncate flex-1"
+              >
+                {s.title || s.url}
+              </a>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${s.error ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                {s.error ? "failed" : "ok"}
+              </span>
+              <span className="text-xs text-gray-400">{s.sourceType}</span>
+            </div>
+            {s.error && (
+              <p className="text-xs text-red-600 pl-4">{s.error}</p>
+            )}
           </li>
         ))}
       </ul>
