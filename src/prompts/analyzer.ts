@@ -98,37 +98,38 @@ export function buildSourcesBlock(sources: ScrapeResult[]): string {
 export function buildAnalyzerUserPrompt(
   sourcesBlock: string,
   competitors: string[],
+  coverageMap: Record<string, boolean>,
   role?: RoleType | null
 ): string {
   const perspectiveLine = role
     ? `Perspective: ${ROLE_DEFINITIONS[role]}\nGenerate the entire report from this perspective — filter, prioritize, and frame all themes, insights, and competitor activities to be most relevant and actionable for this audience.`
     : "Perspective: Balanced — cover all relevant themes and activities without filtering for a specific audience.";
 
-  const competitorList = competitors.join(", ");
+  const presentCompetitors = competitors.filter(c => coverageMap[c]);
+  const coverageStatement = competitors
+    .map(c => `- ${c}: ${coverageMap[c] ? "PRESENT in sources" : "NOT FOUND — do not generate themes or activities for this competitor"}`)
+    .join("\n");
 
   return `${sourcesBlock}
 
-Target competitors/topics: ${competitorList}
+Target competitors/topics: ${competitors.join(", ")}
+
+Competitor coverage (verified server-side — treat as ground truth):
+${coverageStatement}
 
 ${perspectiveLine}
 
-Step 1 — scratchpad:
-  a. For each source URL, list every distinct factual claim found, tagged with its URL.
-  b. For each target competitor (${competitorList}), note whether they are mentioned in ANY source. If a competitor is NOT mentioned in any source, write "NO DATA: [competitor name] — not found in any provided source."
+Step 1 — scratchpad: For each source URL, list every distinct factual claim found, tagged with its URL.
 
-Step 2 — themes (topic clustering): Identify 3–7 themes from the sources.
+Step 2 — themes (topic clustering): Identify 3–7 themes using ONLY content from competitors marked PRESENT above.
   CRITICAL CLUSTERING RULES:
   - Themes MUST be organized by TOPIC, not by competitor. Do NOT create one theme per competitor.
   - If multiple competitors have activity in the same area (e.g. pricing changes, API launches, hiring), those insights MUST be grouped into a single shared theme.
   - Each insight must carry its exact sourceRef URL.
   - Assign each theme a clusterLabel: Product / Pricing / Partnerships / Growth / M&A / Engineering / Other.
-  - If any target competitor had NO coverage in the sources, add a final theme with:
-      title: "No Coverage Found"
-      summary: "The following requested competitors were not mentioned in any of the provided sources: [list them]."
-      clusterLabel: "Other"
-      insights: one insight per missing competitor with text "No information found for [competitor] in the provided sources." and sourceRef set to the empty string "".
+  - Do NOT generate a "No Coverage Found" theme — missing competitors are handled outside this prompt.
 
-Step 3 — activities: List each significant competitor action with its type, date (if mentioned), and source URL(s). Only include competitors that are actually present in the sources.
+Step 3 — activities: List each significant action for these competitors only: ${presentCompetitors.length > 0 ? presentCompetitors.join(", ") : "none"}.
 
 Output the JSON schema shown in the example. Include scratchpad in output — it will be stripped server-side.`;
 }
